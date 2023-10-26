@@ -2,31 +2,180 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include <stdio.h>
+
+enum {
+	START = 0,
+	E,
+	T,
+	I,
+	A,
+	N,
+	M,
+	S,
+	U,
+	R,
+	W,
+	D,
+	K,
+	G,
+	O,
+	H,
+	V,
+	F,
+	T1,
+	L,
+	T2,
+	P,
+	J,
+	B,
+	X,
+	C,
+	Y,
+	Z,
+	Q,
+	T3,
+	T4,
+	FIVE,
+	FOUR,
+	THREE,
+	TWO,
+	PLUS,
+	ONE,
+	SIX,
+	EQUALS,
+	SLASH,
+	SEVEN,
+	EIGHT,
+	NINE,
+	ZERO,
+	ERROR_STATE,
+	TREE_SIZE
+};
 
 
-/* Private function prototypes -----------------------------------------------*/
+const char morse_tree[TREE_SIZE][2] = {
+    [START] = {E, T},
+    [E] = {I, A},
+    [T] = {N, M},
+    [I] = {S, U},
+    [A] = {R, W},
+    [N] = {D, K},
+    [M] = {G, O},
+    [S] = {H, V},
+    [U] = {F, T1},
+    [R] = {L, T2},
+    [W] = {P, J},
+    [D] = {B, X},
+    [K] = {C, Y},
+    [G] = {Z, Q},
+    [O] = {T3, T4},
+    [H] = {FIVE, FOUR},
+    [V] = {ERROR_STATE, THREE},
+    [F] = {ERROR_STATE, ERROR_STATE},
+	[T1] = {ERROR_STATE, TWO},
+    [L] = {ERROR_STATE, ERROR_STATE},
+	[T2] = {PLUS, ERROR_STATE},
+    [P] = {ERROR_STATE, ERROR_STATE},
+    [J] = {ERROR_STATE, ONE},
+    [B] = {SIX, EQUALS},
+    [X] = {SLASH, ERROR_STATE},
+    [C] = {ERROR_STATE, ERROR_STATE},
+    [Y] = {ERROR_STATE, ERROR_STATE},
+    [Z] = {SEVEN, ERROR_STATE},
+    [Q] = {ERROR_STATE, ERROR_STATE},
+	[T3] = {EIGHT, ERROR_STATE},
+	[T4] = {NINE, ZERO},
+    [FIVE] = {ERROR_STATE, ERROR_STATE},
+    [FOUR] = {ERROR_STATE, ERROR_STATE},
+    [THREE] = {ERROR_STATE, ERROR_STATE},
+    [TWO] = {ERROR_STATE, ERROR_STATE},
+    [PLUS] = {ERROR_STATE, ERROR_STATE},
+    [ONE] = {ERROR_STATE, ERROR_STATE},
+    [SIX] = {ERROR_STATE, ERROR_STATE},
+    [EQUALS] = {ERROR_STATE, ERROR_STATE},
+    [SLASH] = {ERROR_STATE, ERROR_STATE},
+    [SEVEN] = {ERROR_STATE, ERROR_STATE},
+    [EIGHT] = {ERROR_STATE, ERROR_STATE},
+    [NINE] = {ERROR_STATE, ERROR_STATE},
+    [ZERO] = {ERROR_STATE, ERROR_STATE},
+    [ERROR_STATE] = {ERROR_STATE, ERROR_STATE},  // Error state
+};
+
+const char node_decode[TREE_SIZE] = {
+	[START] = '>',
+	[E] = 'E',
+	[T] = 'T',
+	[I] = 'I',
+	[A] = 'A',
+	[N] = 'N',
+	[M] = 'M',
+	[S] = 'S',
+	[U] = 'U',
+	[R] = 'R',
+	[W] = 'W',
+	[D] = 'D',
+	[K] = 'K',
+	[G] = 'G',
+	[O] = 'O',
+	[H] = 'H',
+	[V] = 'V',
+	[F] = 'F',
+	[T1] = '?',
+	[L] = 'L',
+	[T2] = '?',
+	[P] = 'P',
+	[J] = 'J',
+	[B] = 'B',
+	[X] = 'X',
+	[C] = 'C',
+	[Y] = 'Y',
+	[Z] = 'Z',
+	[Q] = 'Q',
+	[T3] = '?',
+	[T4] = '?',
+	[FIVE] = '5',
+	[FOUR] = '4',
+	[THREE] = '3',
+	[TWO] = '2',
+	[PLUS] = '+',
+	[ONE] = '1',
+	[SIX] = '6',
+	[EQUALS] = '=',
+	[SLASH] = '/',
+	[SEVEN] = '7',
+	[EIGHT] = '8',
+	[NINE] = '9',
+	[ZERO] = '0',
+	[ERROR_STATE] = '?'  // Error state
+};
+
+char state = START; // init to start state
+
 void SystemClock_Config(void);
 
-void TIM6_DAC_IRQHandler(){
-	TIM6->SR &= ~1;
-
-	if((GPIOC->IDR >> 7) & 1){
-		GPIOC->BSRR = (1 << 7) << 16;
-	} else {
-		GPIOC->BSRR = (1 << 7);
-	}
-
-}
-
-void send_char_over_uart(char ch){
+void uart_send_char(char ch){
 	while (!(USART5->ISR & (1 << 7)));
 	USART5->TDR = ch;
+}
+
+void uart_send_string(const char* str) {
+    while (*str) {  // Continue until the null terminator is encountered
+        uart_send_char(*str);
+        str++;  // Move to the next character in the string
+    }
+}
+
+void uart_send_int(int value) {
+    char buffer[12];  // Buffer to hold the string representation of the integer
+    snprintf(buffer, sizeof(buffer), "%d", value);  // Convert the integer to a string
+    uart_send_string(buffer);  // Send the string over UART
 }
 
 void init_uart(){
 	RCC->AHBENR |= 3 << 19; // enable GPIOB and GPIOC clocks
 	RCC->APB1ENR |= 1 << 20;
-	// set moders to alternate function
+	// set MODER's to alternate function
 	GPIOC->MODER |= 1 << 25;
 	GPIOC->MODER &= ~(1 << 24);
 
@@ -54,7 +203,7 @@ void init_uart(){
 	// no parity
 	USART5->CR1 &= ~(1<<10);
 
-	// 16x oversampling
+	// 16x over-sampling
 	USART5->CR1 &= ~(1<<15);
 
 	// baud rate 115200
@@ -63,7 +212,7 @@ void init_uart(){
 	// enable receiver and transmitter
 	USART5->CR1 |= 3 << 2;
 
-	// enable uart
+	// enable UART
 	USART5->CR1 |= 1;
 
 	// wait for things to work?
@@ -71,18 +220,96 @@ void init_uart(){
 
 }
 
-void init_timer6(){
-	RCC->AHBENR |= 1<<19; // gpioc en clock
-	GPIOC->MODER |= 1 << 14; // pin7 for output
 
-	RCC->APB1ENR |= 1<<4; // tim6 en clock
-	TIM6->PSC = 4800-1;
-	TIM6->ARR = 10000-1;
-	TIM6->DIER |= 1;
-	TIM6->CR1 |= 1;
+void EXTI0_1_IRQHandler(){
 
-	NVIC->ISER[0] = 1<<TIM6_DAC_IRQn;
+	// ack interrupt -> clear 0th bit of EXTI->PR
+	EXTI->PR = 1<<1;
 
+	// toggle pc7 led
+	if((GPIOC->IDR >> 7) & 1){ // if led is on (or if interrupt triggered by falling edge)
+		GPIOC->BSRR = (1 << 7) << 16; // turn off the led
+
+		// and read CNT to decide if dit or dash
+		int count = (int)TIM6->CNT;
+		TIM6->CR1 &= ~1;
+		TIM6->CNT = 0;
+
+
+		// determine if short or long via CNT data
+		if(count < 1400){
+			// received a dit, update state
+			state = morse_tree[(int)state][0];
+		} else {
+			// received a dash, update state
+			state = morse_tree[(int)state][1];
+		}
+
+		// start inactivity timer
+		TIM7->CR1 |= 1;
+
+	} else { // if the led is off (or if interrupt triggered by rising edge)
+		GPIOC->BSRR = (1 << 7); // turn on the led
+
+		// stop inactivity timer
+		TIM7->CR1 &= ~1;
+		// restart its cnt to 0;
+		TIM7->CNT = 0;
+
+		// and enable the activity timer
+		TIM6->CR1 |= 1;
+
+	}
+}
+
+void TIM7_IRQHandler(){
+	// ack interrupt
+	TIM7->SR &= ~1;
+
+	// delayed for 5000 time units -> end of dits and dashes for this char
+
+	// send char to terminal
+	uart_send_char(node_decode[(int)state]);
+	// restart state
+	state = START;
+
+}
+
+// PA0 for input
+void init_timers_gpio(){
+	RCC->AHBENR |= 1<<17; // gpioa en clock for input button
+	RCC->AHBENR |= 1<<19; // gpioc en clock for output led
+	RCC->APB2ENR |= 1; // syscfg en clock
+
+	GPIOA->MODER &= ~(3<<2); // pa1 for input
+	GPIOA->PUPDR |= 1<<3; // pa1 pull down resistor
+
+	// pc7 as output
+	GPIOC->MODER |= 1 << 14;
+	GPIOC->MODER &= ~(1 << 15);
+
+
+	// config interrupt on pa0
+	SYSCFG->EXTICR[0] &= ~(0xf<<4); // clear bottom 4 bits to set interrupt on pa1
+	// call ISR for both rising and falling edge
+	EXTI->RTSR |= 1<<1;
+	EXTI->FTSR |= 1<<1;
+	// unmask the interrupt on pin 1
+	EXTI->IMR |= 1<<1;
+
+    NVIC->ISER[0] = 1<<EXTI0_1_IRQn;
+
+    // setup timers
+    // TIM6 counts time between presses
+    RCC->APB1ENR |= 1<<4; // en clock for tim6
+    TIM6->PSC = 4800-1;
+    TIM6->ARR = 65534-1;
+    // TIM7 counts time between presses
+    RCC->APB1ENR |= 1<<5;
+    TIM7->PSC = 4800-1;
+    TIM7->ARR = 10000-1;
+    TIM7->DIER |= 1;
+    NVIC->ISER[0] = 1<<TIM7_IRQn;
 
 }
 
@@ -93,14 +320,9 @@ int main(void)
   SystemClock_Config();
 
   init_uart();
-  init_timer6();
+  init_timers_gpio();
 
-  while (1)
-  {
-
-	  send_char_over_uart('J');
-	  HAL_Delay(1000);
-  }
+  for(;;);
 
 }
 
