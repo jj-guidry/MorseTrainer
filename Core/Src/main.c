@@ -99,7 +99,7 @@ const char morse_tree[TREE_SIZE][2] = {
     [EIGHT] = {ERROR_STATE, ERROR_STATE},
     [NINE] = {ERROR_STATE, ERROR_STATE},
     [ZERO] = {ERROR_STATE, ERROR_STATE},
-    [ERROR_STATE] = {ERROR_STATE, ERROR_STATE},  // Error state
+    [ERROR_STATE] = {ERROR_STATE, ERROR_STATE}  // Error state
 };
 
 const char node_decode[TREE_SIZE] = {
@@ -246,15 +246,17 @@ void EXTI0_1_IRQHandler(){
 		}
 
 		// start inactivity timer
-		TIM7->CR1 |= 1;
+		TIM2->CR1 |= 1;
 
 	} else { // if the led is off (or if interrupt triggered by rising edge)
 		GPIOC->BSRR = (1 << 7); // turn on the led
 
+
+		TIM2->CNT = 0;
 		// stop inactivity timer
-		TIM7->CR1 &= ~1;
+		TIM2->CR1 &= ~1;
 		// restart its cnt to 0;
-		TIM7->CNT = 0;
+
 
 		// and enable the activity timer
 		TIM6->CR1 |= 1;
@@ -262,9 +264,9 @@ void EXTI0_1_IRQHandler(){
 	}
 }
 
-void TIM7_IRQHandler(){
+void TIM2_IRQHandler(){
 	// ack interrupt
-	TIM7->SR &= ~1;
+	TIM2->SR &= ~1;
 
 	// delayed for 5000 time units -> end of dits and dashes for this char
 
@@ -300,16 +302,18 @@ void init_timers_gpio(){
     NVIC->ISER[0] = 1<<EXTI0_1_IRQn;
 
     // setup timers
-    // TIM6 counts time between presses
+    // TIM6 counts duration of press
     RCC->APB1ENR |= 1<<4; // en clock for tim6
     TIM6->PSC = 4800-1;
     TIM6->ARR = 65534-1;
-    // TIM7 counts time between presses
-    RCC->APB1ENR |= 1<<5;
-    TIM7->PSC = 4800-1;
-    TIM7->ARR = 10000-1;
-    TIM7->DIER |= 1;
-    NVIC->ISER[0] = 1<<TIM7_IRQn;
+    // TIM2 counts duration between presses
+    // 2 interrupts: one at 3 time units to end the character and another at 7 to add a space and pause the whole thing
+    RCC->APB1ENR |= 1<<0;
+    TIM2->PSC = 4800-1;
+    TIM2->ARR = 7500-1;
+    TIM2->DIER |= 1;
+    TIM2->CNT = 0;
+    NVIC->ISER[0] = 1<<TIM2_IRQn;
 
 }
 
@@ -322,6 +326,7 @@ int main(void)
   init_uart();
   init_timers_gpio();
 
+  uart_send_string("\n\r");
   for(;;);
 
 }
