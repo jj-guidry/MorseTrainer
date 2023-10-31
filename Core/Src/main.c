@@ -172,6 +172,12 @@ void uart_send_int(int value) {
     uart_send_string(buffer);  // Send the string over UART
 }
 
+void uart_send_hex(int value) {
+    char buffer[12];  // Buffer to hold the string representation of the integer
+    snprintf(buffer, sizeof(buffer), "%x", value);  // Convert the integer to a string
+    uart_send_string(buffer);  // Send the string over UART
+}
+
 void init_uart(){
 	RCC->AHBENR |= 3 << 19; // enable GPIOB and GPIOC clocks
 	RCC->APB1ENR |= 1 << 20;
@@ -223,21 +229,32 @@ void init_uart(){
 
 void EXTI0_1_IRQHandler(){
 
-	// ack interrupt -> clear 0th bit of EXTI->PR
+	// ack interrupt -> clear 1st bit of EXTI->PR
 	EXTI->PR = 1<<1;
 
 	// toggle pc7 led
-	if((GPIOC->IDR >> 7) & 1){ // if led is on (or if interrupt triggered by falling edge)
+	if((GPIOA->IDR >> 1) & 1){ // button pin is high (triggered by rising edge)
+
+		GPIOC->BSRR = (1 << 7); // turn on led
+
+		// stop the inactivity timer
+		TIM2->CR1 &= ~1;
+		TIM2->CNT = 0;
+
+		// start activity timer
+		TIM6->CR1 |= 1;
+
+	} else { // button pin is low (triggered by falling edge)
 		GPIOC->BSRR = (1 << 7) << 16; // turn off the led
 
-		// and read CNT to decide if dit or dash
-		int count = (int)TIM6->CNT;
+		int count = (int) TIM6->CNT;
+
+		// stop activity timer since button went low
+
 		TIM6->CR1 &= ~1;
 		TIM6->CNT = 0;
-
-
 		// determine if short or long via CNT data
-		if(count < 1400){
+		if(count < 1150){
 			// received a dit, update state
 			state = morse_tree[(int)state][0];
 		} else {
@@ -248,30 +265,29 @@ void EXTI0_1_IRQHandler(){
 		// start inactivity timer
 		TIM2->CR1 |= 1;
 
-	} else { // if the led is off (or if interrupt triggered by rising edge)
-		GPIOC->BSRR = (1 << 7); // turn on the led
-
-
-		TIM2->CNT = 0;
-		// stop inactivity timer
-		TIM2->CR1 &= ~1;
-		// restart its cnt to 0;
-
-
-		// and enable the activity timer
-		TIM6->CR1 |= 1;
-
 	}
 }
 
 void TIM2_IRQHandler(){
-	// ack interrupt
-	TIM2->SR &= ~1;
 
-	// delayed for 5000 time units -> end of dits and dashes for this char
+	// check if interrupt triggered from 3 inactive time units (end of curr dit/dash)
+	// or from 7 inactive time units (end of word, send a space)
 
-	// send char to terminal
-	uart_send_char(node_decode[(int)state]);
+	uart_send_hex(TIM2->SR);
+	if((TIM2->SR >> 1) & 1){
+		// interrupt source: 3 inactive time units
+		TIM2->SR &= ~(1<<1); // clear CC1IF bit
+		// and send the current char to serial port
+		uart_send_char(node_decode[(int)state]);
+	} else if(TIM2->SR & 1){
+		// interrupt source: 7 inactive time units
+		TIM2->SR &= ~1; // clear UIF flag
+		TIM2->CR1 &= ~1; // stop the timer
+		// send a space, since this means end of current work
+		uart_send_char(' ');
+		TIM2->CNT = 0;
+	}
+
 	// restart state
 	state = START;
 
@@ -307,11 +323,14 @@ void init_timers_gpio(){
     TIM6->PSC = 4800-1;
     TIM6->ARR = 65534-1;
     // TIM2 counts duration between presses
-    // 2 interrupts: one at 3 time units to end the character and another at 7 to add a space and pause the whole thing
+    // 2 interrupts: one at 3 time units (cnt == 3000) to end the character and another at 7 to add a space and pause the whole thing
     RCC->APB1ENR |= 1<<0;
     TIM2->PSC = 4800-1;
-    TIM2->ARR = 7500-1;
+    TIM2->ARR = 7000-1;
     TIM2->DIER |= 1;
+    TIM2->DIER |= 1<<1;
+    TIM2->CCR1 = 3000;
+    TIM2->CCMR1 |= (3<<4);
     TIM2->CNT = 0;
     NVIC->ISER[0] = 1<<TIM2_IRQn;
 
