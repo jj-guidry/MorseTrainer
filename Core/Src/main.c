@@ -193,10 +193,10 @@ void init_tim3(){
 	GPIOC->MODER |= GPIO_MODER_MODER6_1; // led on PC6 to AF
 	TIM3->PSC = 480-1;
 	TIM3->ARR = 156-1; // 1hz pwm signal
-	TIM3->CCMR1 |= TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1;  // interrupt when CNT == CCR1
+	TIM3->CCMR1 |= TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1; // interrupt when CNT == CCR1
 	TIM3->CCR1 = 8; // pwm goes low @ cnt == 8
 	TIM3->CNT = 9; // start pwm line low
-	TIM3->CCER |= TIM_CCER_CC1E;
+	TIM3->CCER |= TIM_CCER_CC1E; // enable channel 1
 }
 
 void init_uart(){

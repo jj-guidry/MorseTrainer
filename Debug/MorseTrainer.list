@@ -335,22 +335,22 @@ void init_tim3(){
  80002ac:	4b0d      	ldr	r3, [pc, #52]	; (80002e4 <init_tim3+0x6c>)
  80002ae:	229b      	movs	r2, #155	; 0x9b
  80002b0:	62da      	str	r2, [r3, #44]	; 0x2c
-	TIM3->CCMR1 |= TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1;  // interrupt when CNT == CCR1
+	TIM3->CCMR1 |= TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1; // interrupt when CNT == CCR1
  80002b2:	4b0c      	ldr	r3, [pc, #48]	; (80002e4 <init_tim3+0x6c>)
  80002b4:	699a      	ldr	r2, [r3, #24]
  80002b6:	4b0b      	ldr	r3, [pc, #44]	; (80002e4 <init_tim3+0x6c>)
  80002b8:	2160      	movs	r1, #96	; 0x60
  80002ba:	430a      	orrs	r2, r1
  80002bc:	619a      	str	r2, [r3, #24]
-	TIM3->CCR1 = 8; // pwm goes low @ cnt == 500
+	TIM3->CCR1 = 8; // pwm goes low @ cnt == 8
  80002be:	4b09      	ldr	r3, [pc, #36]	; (80002e4 <init_tim3+0x6c>)
  80002c0:	2208      	movs	r2, #8
  80002c2:	635a      	str	r2, [r3, #52]	; 0x34
-	TIM3->CNT = 9; // start pwm thing low
+	TIM3->CNT = 9; // start pwm line low
  80002c4:	4b07      	ldr	r3, [pc, #28]	; (80002e4 <init_tim3+0x6c>)
  80002c6:	2209      	movs	r2, #9
  80002c8:	625a      	str	r2, [r3, #36]	; 0x24
-	TIM3->CCER |= TIM_CCER_CC1E;
+	TIM3->CCER |= TIM_CCER_CC1E; // enable channel 1
  80002ca:	4b06      	ldr	r3, [pc, #24]	; (80002e4 <init_tim3+0x6c>)
  80002cc:	6a1a      	ldr	r2, [r3, #32]
  80002ce:	4b05      	ldr	r3, [pc, #20]	; (80002e4 <init_tim3+0x6c>)
