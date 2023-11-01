@@ -152,6 +152,12 @@ const char node_decode[TREE_SIZE] = {
 
 char state = START; // init to start state
 
+// for the timer clocks to be initialized, we force an update event so that
+// the PSC's are loaded into their respective shadow registers
+volatile uint8_t forcedEventFlag = 0;
+// bit 0 is for tim6
+// bit 1 is for tim2
+
 void SystemClock_Config(void);
 
 void uart_send_char(char ch){
@@ -179,53 +185,71 @@ void uart_send_hex(int value) {
     uart_send_char(' ');
 }
 
-void init_uart(){
-	RCC->AHBENR |= 3 << 19; // enable GPIOB and GPIOC clocks
-	RCC->APB1ENR |= 1 << 20;
-	// set MODER's to alternate function
-	GPIOC->MODER |= 1 << 25;
-	GPIOC->MODER &= ~(1 << 24);
 
-	GPIOD->MODER |= (1<<5);
-	GPIOD->MODER &= ~(1<<4);
+// tim3 used for PWM for buzzer
+void init_tim3(){
+	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; // en tim3 clock
+	RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // en GPIOC clock
+	GPIOC->MODER |= GPIO_MODER_MODER6_1; // led on PC6 to AF
+	TIM3->PSC = 480-1;
+	TIM3->ARR = 156-1; // 1hz pwm signal
+	TIM3->CCMR1 |= TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1;  // interrupt when CNT == CCR1
+	TIM3->CCR1 = 16; // pwm goes low @ cnt == 500
+	TIM3->CNT = 17; // start pwm thing low
+	TIM3->CCER |= TIM_CCER_CC1E;
+}
+
+void init_uart(){
+
+	// ------------------ serial port UART setup ----------------
+
+	RCC->AHBENR |= RCC_AHBENR_GPIOCEN | RCC_AHBENR_GPIODEN; // enable GPIOD and GPIOC clocks
+	RCC->APB1ENR |= RCC_APB1ENR_USART5EN;
+	// set MODER's to alternate function
+	GPIOC->MODER |= GPIO_MODER_MODER12_1;
+	GPIOC->MODER &= ~(GPIO_MODER_MODER12_0);
+
+	GPIOD->MODER |= GPIO_MODER_MODER2_1;
+	GPIOD->MODER &= ~GPIO_MODER_MODER2_0;
 
 	// configure pc12 for UART5_TX (AF2)
-	GPIOC->AFR[1] |= 2 << 16;
-	GPIOC->AFR[1] &= ~(0xd << 16);
+	GPIOC->AFR[1] &= ~GPIO_AFRH_AFSEL12;
+	GPIOC->AFR[1] |= (2 << 16);
 
 	// configure pd2 for UART5_RX (AF2)
-	GPIOD->AFR[0] |= 2 << 8;
-	GPIOD->AFR[0] &= ~(0xd << 8);
+	GPIOD->AFR[0] &= ~GPIO_AFRL_AFSEL2;
+	GPIOD->AFR[0] |= (2 << 8);
 
 	// first, turn off the UE bit
-	USART5->CR1 &= ~1;
+	USART5->CR1 &= ~USART_CR1_UE;
 
 	// set word length to 8 bits
-	USART5->CR1 &= ~(1<<28);
-	USART5->CR1 &= ~(1<<12);
+	USART5->CR1 &= ~USART_CR1_M0;
+	USART5->CR1 &= ~USART_CR1_M1;
 
 	// set for 1 stop bit
-	USART5->CR2 &= ~(3<<12);
+	USART5->CR2 &= ~(USART_CR2_STOP);
 
 	// no parity
-	USART5->CR1 &= ~(1<<10);
+	USART5->CR1 &= ~(USART_CR1_PCE);
 
 	// 16x over-sampling
-	USART5->CR1 &= ~(1<<15);
+	USART5->CR1 &= ~(USART_CR1_OVER8);
 
 	// baud rate 115200
 	USART5->BRR = 0x1a1;
 
 	// enable receiver and transmitter
-	USART5->CR1 |= 3 << 2;
+	USART5->CR1 |= (USART_CR1_TE | USART_CR1_RE);
 
 	// enable UART
-	USART5->CR1 |= 1;
+	USART5->CR1 |= USART_CR1_UE;
 
 	// wait for things to work?
-	while(!(USART5->ISR & (1<<22)) || !(USART5->ISR & (1<<21)));
+	while(!(USART5->ISR & USART_ISR_REACK) || !(USART5->ISR & USART_ISR_TEACK));
 
 }
+
 
 
 void EXTI0_1_IRQHandler(){
@@ -236,7 +260,11 @@ void EXTI0_1_IRQHandler(){
 	// toggle pc7 led
 	if((GPIOA->IDR >> 1) & 1){ // button pin is high (triggered by rising edge)
 
-		GPIOC->BSRR = (1 << 7); // turn on led
+		// turn on led
+		GPIOC->BSRR = (1 << 7);
+
+		// turn on buzzer
+		TIM3->CR1 |= TIM_CR1_CEN;
 
 		// stop the inactivity timer
 		TIM2->CR1 &= ~1;
@@ -246,16 +274,22 @@ void EXTI0_1_IRQHandler(){
 		TIM6->CR1 |= 1;
 
 	} else { // button pin is low (triggered by falling edge)
-		GPIOC->BSRR = (1 << 7) << 16; // turn off the led
+
+		 // turn off the led
+		GPIOC->BSRR = (1 << 7) << 16;
+
+		// turn off buzzer
+		TIM3->CR1 &= ~TIM_CR1_CEN;
+		TIM3->CNT = 17; // cnt > ccr1 to make sure line is low
 
 		int count = (int) TIM6->CNT;
 
 		// stop activity timer since button went low
-
 		TIM6->CR1 &= ~1;
 		TIM6->CNT = 0;
+
 		// determine if short or long via CNT data
-		if(count < 1150){
+		if(count < 115){ // press was shorter than 115ms -> dit
 			// received a dit, update state
 			state = morse_tree[(int)state][0];
 		} else {
@@ -264,8 +298,22 @@ void EXTI0_1_IRQHandler(){
 		}
 
 		// start inactivity timer
-		TIM2->CR1 |= 1;
+		TIM2->CR1 |= TIM_CR1_CEN;
 
+	}
+}
+
+void TIM6_DAC_IRQHandler(){
+	if(!(forcedEventFlag & 1)){ // if this is the first interrupt
+		forcedEventFlag |= 1; // set the 0th bit to ack init event
+		TIM6->SR &= ~TIM_SR_UIF;
+	} else {
+		// otherwise, interrupt triggered by holding down for longer
+		// than 350ms, indicating a dash, but we only should turn off
+		// timer and set its cnt to 399
+		TIM6->SR &= ~TIM_SR_UIF;
+		TIM6->CR1 &= ~TIM_CR1_CEN; // stop the timer
+		TIM6->CNT = 399; // max out the timer so that a dash is interpreted
 	}
 }
 
@@ -274,17 +322,24 @@ void TIM2_IRQHandler(){
 	// check if interrupt triggered from 3 inactive time units (end of curr dit/dash)
 	// or from 7 inactive time units (end of word, send a space)
 
-	uart_send_hex(TIM2->SR);
-	if((TIM2->SR >> 1) & 1){
+	// bit 1 of forcedEventFlag == 0 means this is the first interrupt (wrong clock speed)
+	if(!(forcedEventFlag & 1<<1)){
+		forcedEventFlag |= 1<<1; // set that bit to ack this
+		TIM2->SR &= ~TIM_SR_UIF;
+		return;
+	}
+
+	if(TIM2->SR & TIM_SR_CC1IF){
 		// interrupt source: 3 inactive time units
-		TIM2->SR &= ~(1<<1); // clear CC1IF bit
+		TIM2->SR &= ~(TIM_SR_CC1IF); // clear CC1IF bit
 		// and send the current char to serial port
 		uart_send_char(node_decode[(int)state]);
-	} else if(TIM2->SR & 1){
+
+	} else if(TIM2->SR & TIM_SR_UIF){
 		// interrupt source: 7 inactive time units
-		TIM2->SR &= ~1; // clear UIF flag
-		TIM2->CR1 &= ~1; // stop the timer
-		// send a space, since this means end of current work
+		TIM2->SR &= ~TIM_SR_UIF; // clear UIF flag
+		TIM2->CR1 &= ~TIM_CR1_CEN; // stop the timer
+		// send a space, since this means end of current word
 		uart_send_char(' ');
 		TIM2->CNT = 0;
 	}
@@ -296,43 +351,49 @@ void TIM2_IRQHandler(){
 
 // PA0 for input
 void init_timers_gpio(){
-	RCC->AHBENR |= 1<<17; // gpioa en clock for input button
-	RCC->AHBENR |= 1<<19; // gpioc en clock for output led
-	RCC->APB2ENR |= 1; // syscfg en clock
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN; // gpioa en clock for input button
+	RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // gpioc en clock for output led
+	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; // syscfg en clock
 
-	GPIOA->MODER &= ~(3<<2); // pa1 for input
-	GPIOA->PUPDR |= 1<<3; // pa1 pull down resistor
+	GPIOA->MODER &= ~(GPIO_MODER_MODER1); // pa1 for input
+	GPIOA->PUPDR |= GPIO_PUPDR_PUPDR1_1; // pa1 pull down resistor
 
 	// pc7 as output
-	GPIOC->MODER |= 1 << 14;
-	GPIOC->MODER &= ~(1 << 15);
+	GPIOC->MODER |= GPIO_MODER_MODER7_0;
+	GPIOC->MODER &= ~(GPIO_MODER_MODER7_1);
 
 
 	// config interrupt on pa0
 	SYSCFG->EXTICR[0] &= ~(0xf<<4); // clear bottom 4 bits to set interrupt on pa1
 	// call ISR for both rising and falling edge
-	EXTI->RTSR |= 1<<1;
-	EXTI->FTSR |= 1<<1;
+	EXTI->RTSR |= EXTI_RTSR_RT1;
+	EXTI->FTSR |= EXTI_FTSR_FT1;
 	// unmask the interrupt on pin 1
-	EXTI->IMR |= 1<<1;
+	EXTI->IMR |= EXTI_IMR_IM1;
 
     NVIC->ISER[0] = 1<<EXTI0_1_IRQn;
 
     // setup timers
     // TIM6 counts duration of press
-    RCC->APB1ENR |= 1<<4; // en clock for tim6
-    TIM6->PSC = 4800-1;
-    TIM6->ARR = 65534-1;
+    RCC->APB1ENR |= RCC_APB1ENR_TIM6EN; // en clock for tim6
+    TIM6->PSC = 48000-1;
+    TIM6->ARR = 400-1;
+
+    TIM6->EGR |= TIM_EGR_UG; // force an update to init the PSC shadow register
+
     // TIM2 counts duration between presses
     // 2 interrupts: one at 3 time units (cnt == 3000) to end the character and another at 7 to add a space and pause the whole thing
-    RCC->APB1ENR |= 1<<0;
-    TIM2->PSC = 4800-1;
-    TIM2->ARR = 7000-1;
-    TIM2->DIER |= 1;
-    TIM2->DIER |= 1<<1;
-    TIM2->CCR1 = 3000;
-    TIM2->CCMR1 |= (3<<4);
+    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
+    TIM2->PSC = 48000-1;
+    TIM2->ARR = 700-1;
+    TIM2->DIER |= TIM_DIER_UIE;
+    TIM2->DIER |= TIM_DIER_CC1IE;
+    TIM2->CCR1 = 300;
+    TIM2->CCMR1 |= TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_0;
     TIM2->CNT = 0;
+
+    TIM2->EGR |= TIM_EGR_UG; // force an update
+
     NVIC->ISER[0] = 1<<TIM2_IRQn;
 
 }
@@ -345,7 +406,7 @@ int main(void)
 
   init_uart();
   init_timers_gpio();
-
+  init_tim3();
   uart_send_string("\n\r");
   for(;;);
 
