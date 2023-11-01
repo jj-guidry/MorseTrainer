@@ -194,8 +194,8 @@ void init_tim3(){
 	TIM3->PSC = 480-1;
 	TIM3->ARR = 156-1; // 1hz pwm signal
 	TIM3->CCMR1 |= TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1;  // interrupt when CNT == CCR1
-	TIM3->CCR1 = 16; // pwm goes low @ cnt == 500
-	TIM3->CNT = 17; // start pwm thing low
+	TIM3->CCR1 = 8; // pwm goes low @ cnt == 8
+	TIM3->CNT = 9; // start pwm line low
 	TIM3->CCER |= TIM_CCER_CC1E;
 }
 
