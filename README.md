@@ -1,3 +1,12 @@
-MorseTrainer
+# MorseTrainer
+## Overview of Morse Code
 
-A microcontroller project to how to transmit Morse Code.
+## Signal Processing
+
+## Buzzer
+
+## RF Transceiver
+
+## PCB
+
+## Results
