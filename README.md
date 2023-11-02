@@ -8,7 +8,56 @@ It's mostly obsolete today and typically only used by hobbyists, but I plan to t
 ### The Code
 Most everyone knows Morse code is transmitted using dots and dashes (or dits and dahs if you're really getting into character) but most don't have the code memorized or know the timing standards associated with it. Here is standardized International Morse Code table translating each character or number into its associated series of dots and dashes:
 
-![International Morse Code](International_Morse_Code.png)
+| Letter | Morse Code |
+|--------|------------|
+| A      | .-         |
+| B      | -...       |
+| C      | -.-.       |
+| D      | -..        |
+| E      | .          |
+| F      | ..-.       |
+| G      | --.        |
+| H      | ....       |
+| I      | ..         |
+| J      | .---       |
+| K      | -.-        |
+| L      | .-..       |
+| M      | --         |
+| N      | -.         |
+| O      | ---        |
+| P      | .--.       |
+| Q      | --.-       |
+| R      | .-.        |
+| S      | ...        |
+| T      | -          |
+| U      | ..-        |
+| V      | ...-       |
+| W      | .--        |
+| X      | -..-       |
+| Y      | -.--       |
+| Z      | --..       |
+
+| Number | Morse Code |
+|--------|------------|
+| 0      | -----      |
+| 1      | .----      |
+| 2      | ..---      |
+| 3      | ...--      |
+| 4      | ....-      |
+| 5      | .....      |
+| 6      | -....      |
+| 7      | --...      |
+| 8      | ---..      |
+| 9      | ----.      |
+
+Morse Code Timing Characteristics
+
+- **Dot:** 1 time unit.
+- **Dash:** 3 time units.
+- **Space between symbols (dots and dashes) of the same letter:** 1 time unit.
+- **Space between letters:** 3 time units.
+- **Space between words:** 7 time units.
+
 
 From the table, we can see that the timing is characterized by generic "time units" and doesn't have a specified length of time for a dot, dash, end of character, space, or end of word. First things first: click a button a bunch of times and see how many miliseconds is a comfortable dot or dash for me.
 
