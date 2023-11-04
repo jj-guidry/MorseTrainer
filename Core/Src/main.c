@@ -3,7 +3,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <stdio.h>
-
+#include "init.h"
+#include "serial_port.h"
+#include "led_display.h"
 enum {
 	START = 0,
 	E,
@@ -160,96 +162,6 @@ volatile uint8_t forcedEventFlag = 0;
 
 void SystemClock_Config(void);
 
-void uart_send_char(char ch){
-	while (!(USART5->ISR & (1 << 7)));
-	USART5->TDR = ch;
-}
-
-void uart_send_string(const char* str) {
-    while (*str) {  // Continue until the null terminator is encountered
-        uart_send_char(*str);
-        str++;  // Move to the next character in the string
-    }
-}
-
-void uart_send_int(int value) {
-    char buffer[12];  // Buffer to hold the string representation of the integer
-    snprintf(buffer, sizeof(buffer), "%d", value);  // Convert the integer to a string
-    uart_send_string(buffer);  // Send the string over UART
-}
-
-void uart_send_hex(int value) {
-    char buffer[12];  // Buffer to hold the string representation of the integer
-    snprintf(buffer, sizeof(buffer), "%x", value);  // Convert the integer to a string
-    uart_send_string(buffer);  // Send the string over UART
-    uart_send_char(' ');
-}
-
-
-// tim3 used for PWM for buzzer
-void init_tim3(){
-	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; // en tim3 clock
-	RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // en GPIOC clock
-	GPIOC->MODER |= GPIO_MODER_MODER6_1; // led on PC6 to AF
-	TIM3->PSC = 480-1;
-	TIM3->ARR = 156-1; // 1hz pwm signal
-	TIM3->CCMR1 |= TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1; // interrupt when CNT == CCR1
-	TIM3->CCR1 = 8; // pwm goes low @ cnt == 8
-	TIM3->CNT = 9; // start pwm line low
-	TIM3->CCER |= TIM_CCER_CC1E; // enable channel 1
-}
-
-void init_uart(){
-
-	// ------------------ serial port UART setup ----------------
-
-	RCC->AHBENR |= RCC_AHBENR_GPIOCEN | RCC_AHBENR_GPIODEN; // enable GPIOD and GPIOC clocks
-	RCC->APB1ENR |= RCC_APB1ENR_USART5EN;
-	// set MODER's to alternate function
-	GPIOC->MODER |= GPIO_MODER_MODER12_1;
-	GPIOC->MODER &= ~(GPIO_MODER_MODER12_0);
-
-	GPIOD->MODER |= GPIO_MODER_MODER2_1;
-	GPIOD->MODER &= ~GPIO_MODER_MODER2_0;
-
-	// configure pc12 for UART5_TX (AF2)
-	GPIOC->AFR[1] &= ~GPIO_AFRH_AFSEL12;
-	GPIOC->AFR[1] |= (2 << 16);
-
-	// configure pd2 for UART5_RX (AF2)
-	GPIOD->AFR[0] &= ~GPIO_AFRL_AFSEL2;
-	GPIOD->AFR[0] |= (2 << 8);
-
-	// first, turn off the UE bit
-	USART5->CR1 &= ~USART_CR1_UE;
-
-	// set word length to 8 bits
-	USART5->CR1 &= ~USART_CR1_M0;
-	USART5->CR1 &= ~USART_CR1_M1;
-
-	// set for 1 stop bit
-	USART5->CR2 &= ~(USART_CR2_STOP);
-
-	// no parity
-	USART5->CR1 &= ~(USART_CR1_PCE);
-
-	// 16x over-sampling
-	USART5->CR1 &= ~(USART_CR1_OVER8);
-
-	// baud rate 115200
-	USART5->BRR = 0x1a1;
-
-	// enable receiver and transmitter
-	USART5->CR1 |= (USART_CR1_TE | USART_CR1_RE);
-
-	// enable UART
-	USART5->CR1 |= USART_CR1_UE;
-
-	// wait for things to work?
-	while(!(USART5->ISR & USART_ISR_REACK) || !(USART5->ISR & USART_ISR_TEACK));
-
-}
-
 
 
 void EXTI0_1_IRQHandler(){
@@ -349,54 +261,6 @@ void TIM2_IRQHandler(){
 
 }
 
-// PA0 for input
-void init_timers_gpio(){
-	RCC->AHBENR |= RCC_AHBENR_GPIOAEN; // gpioa en clock for input button
-	RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // gpioc en clock for output led
-	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; // syscfg en clock
-
-	GPIOA->MODER &= ~(GPIO_MODER_MODER1); // pa1 for input
-	GPIOA->PUPDR |= GPIO_PUPDR_PUPDR1_1; // pa1 pull down resistor
-
-	// pc7 as output
-	GPIOC->MODER |= GPIO_MODER_MODER7_0;
-	GPIOC->MODER &= ~(GPIO_MODER_MODER7_1);
-
-
-	// config interrupt on pa0
-	SYSCFG->EXTICR[0] &= ~(0xf<<4); // clear bottom 4 bits to set interrupt on pa1
-	// call ISR for both rising and falling edge
-	EXTI->RTSR |= EXTI_RTSR_RT1;
-	EXTI->FTSR |= EXTI_FTSR_FT1;
-	// unmask the interrupt on pin 1
-	EXTI->IMR |= EXTI_IMR_IM1;
-
-    NVIC->ISER[0] = 1<<EXTI0_1_IRQn;
-
-    // setup timers
-    // TIM6 counts duration of press
-    RCC->APB1ENR |= RCC_APB1ENR_TIM6EN; // en clock for tim6
-    TIM6->PSC = 48000-1;
-    TIM6->ARR = 400-1;
-
-    TIM6->EGR |= TIM_EGR_UG; // force an update to init the PSC shadow register
-
-    // TIM2 counts duration between presses
-    // 2 interrupts: one at 3 time units (cnt == 3000) to end the character and another at 7 to add a space and pause the whole thing
-    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
-    TIM2->PSC = 48000-1;
-    TIM2->ARR = 700-1;
-    TIM2->DIER |= TIM_DIER_UIE;
-    TIM2->DIER |= TIM_DIER_CC1IE;
-    TIM2->CCR1 = 300;
-    TIM2->CCMR1 |= TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_0;
-    TIM2->CNT = 0;
-
-    TIM2->EGR |= TIM_EGR_UG; // force an update
-
-    NVIC->ISER[0] = 1<<TIM2_IRQn;
-
-}
 
 int main(void)
 {
@@ -404,9 +268,14 @@ int main(void)
   HAL_Init();
   SystemClock_Config();
 
-  init_uart();
+  init_serial_port();
+
   init_timers_gpio();
-  init_tim3();
+  init_buzzer_pwm();
+
+  init_display();
+  led_startup_commands();
+
   uart_send_string("\n\r");
   for(;;);
 
