@@ -59,7 +59,7 @@ Morse Code Timing Characteristics
 - **Space between words:** 7 time units.
 
 
-From the table, we can see that the timing is characterized by generic "time units" and doesn't have a specified length of time for a dot, dash, end of character, space, or end of word. First things first: click a button a bunch of times and see how many miliseconds is a comfortable dot or dash for me.
+From the table, we can see that the timing is characterized by generic "time units" and doesn't have a specified length of time for a dot, dash, end of character, space, or end of word. First things first: click a button a bunch of times and see how many miliseconds is a comfortable dot or dash for me. 
 
 ## Signal Processing
 
