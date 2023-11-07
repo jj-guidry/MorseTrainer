@@ -276,6 +276,22 @@ int main(void)
   init_display();
   led_startup_commands();
 
+  led_send_char('C');
+  led_send_char('u');
+  led_send_char('t');
+  led_send_char('i');
+  led_send_char('e');
+  led_send_char(' ');
+  led_send_char('p');
+  led_send_char('a');
+  led_send_char('t');
+  led_send_char('o');
+  led_send_char('o');
+  led_send_char('t');
+  led_send_char('i');
+  led_send_char('e');
+
+
   uart_send_string("\n\r");
   for(;;);
 
