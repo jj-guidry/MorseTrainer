@@ -1,5 +1,5 @@
 ../Core/Src/serial_port.c:7:6:uart_send_char	16	static
 ../Core/Src/serial_port.c:12:6:uart_send_string	16	static
 ../Core/Src/serial_port.c:19:6:uart_send_int	40	static
-../Core/Src/serial_port.c:25:6:uart_send_hex	40	static
-../Core/Src/serial_port.c:32:6:init_serial_port	8	static
+../Core/Src/serial_port.c:26:6:uart_send_hex	40	static
+../Core/Src/serial_port.c:33:6:init_serial_port	8	static

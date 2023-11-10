@@ -20,6 +20,7 @@ void uart_send_int(int value) {
     char buffer[12];  // Buffer to hold the string representation of the integer
     snprintf(buffer, sizeof(buffer), "%d", value);  // Convert the integer to a string
     uart_send_string(buffer);  // Send the string over UART
+    uart_send_char('\n');
 }
 
 void uart_send_hex(int value) {

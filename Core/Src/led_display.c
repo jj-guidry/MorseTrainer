@@ -19,7 +19,7 @@ void led_startup_commands(){
 	HAL_Delay(2);
 	led_send_command(0x06);
 	led_send_command(0x02);
-	led_send_command(0x0c);
+	led_send_command(0x0f);
 
 }
 void init_display(){

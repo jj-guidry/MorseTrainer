@@ -203,9 +203,11 @@ void EXTI0_1_IRQHandler(){
 		// determine if short or long via CNT data
 		if(count < 115){ // press was shorter than 115ms -> dit
 			// received a dit, update state
+			uart_send_int(count);
 			state = morse_tree[(int)state][0];
 		} else {
 			// received a dash, update state
+			uart_send_int(count);
 			state = morse_tree[(int)state][1];
 		}
 
