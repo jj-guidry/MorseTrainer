@@ -1,2 +1,0 @@
-../Core/Src/init.c:7:6:init_buzzer_pwm	1
-../Core/Src/init.c:22:6:init_timers_gpio	1

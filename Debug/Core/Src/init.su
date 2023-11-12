@@ -1,2 +1,0 @@
-../Core/Src/init.c:7:6:init_buzzer_pwm	8	static
-../Core/Src/init.c:22:6:init_timers_gpio	8	static

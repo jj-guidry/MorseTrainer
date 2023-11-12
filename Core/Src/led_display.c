@@ -38,9 +38,9 @@ void init_display(){
 	while(SPI1->CR1 & SPI_CR1_SPE); // wait for it to be off
 	SPI1->CR1 |= SPI_CR1_BR; // set baud rate to all 1's
 	SPI1->CR2 |= SPI_CR2_DS_3; // setting the DS is really wierd, see documentation, will be 0xf after this line
-	SPI1->CR2 &= ~(SPI_CR2_DS_2 | SPI_CR2_DS_1); // clear middle 2 bits so = 0b1001
-	SPI1->CR2 |= SPI_CR2_SSOE;
+	SPI1->CR2 &= ~(SPI_CR2_DS_2 | SPI_CR2_DS_1); // clear middle two bits for 1001 -> 10 bit word size
 	SPI1->CR1 |= SPI_CR1_MSTR;
+	SPI1->CR2 |= SPI_CR2_SSOE;
 	SPI1->CR2 |= SPI_CR2_NSSP;
 	SPI1->CR1 |= SPI_CR1_SPE;
 
@@ -54,5 +54,5 @@ void led_send_command(uint16_t cmd){
 
 
 void led_send_char(char ch){
-	led_send_command(0x200 | ch);
+	led_send_command(0x200 | ch); // send the char
 }
