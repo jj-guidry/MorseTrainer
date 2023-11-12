@@ -243,22 +243,28 @@ void TIM2_IRQHandler(){
 		return;
 	}
 
+
+
 	if(TIM2->SR & TIM_SR_CC1IF){
 		// interrupt source: 3 inactive time units
-		TIM2->SR &= ~(TIM_SR_CC1IF); // clear CC1IF bit
-		// and send the current char to serial port
-		uart_send_char(node_decode[(int)state]);
+		TIM2->SR &= ~(TIM_SR_CC1IF); // clear output compare flag
+		// and send the current char to serial port and lcd display
+
+		char curr_char = node_decode[(int)state];
+		led_send_char(curr_char);
+		uart_send_char(curr_char);
 
 	} else if(TIM2->SR & TIM_SR_UIF){
 		// interrupt source: 7 inactive time units
 		TIM2->SR &= ~TIM_SR_UIF; // clear UIF flag
 		TIM2->CR1 &= ~TIM_CR1_CEN; // stop the timer
 		// send a space, since this means end of current word
+		led_send_char(' ');
 		uart_send_char(' ');
 		TIM2->CNT = 0;
 	}
 
-	// restart state
+	// done interpreting dots and dashes for this char, so go back to start state
 	state = START;
 
 }
@@ -277,21 +283,6 @@ int main(void)
 
   init_display();
   led_startup_commands();
-
-  led_send_char('C');
-  led_send_char('u');
-  led_send_char('t');
-  led_send_char('i');
-  led_send_char('e');
-  led_send_char(' ');
-  led_send_char('p');
-  led_send_char('a');
-  led_send_char('t');
-  led_send_char('o');
-  led_send_char('o');
-  led_send_char('t');
-  led_send_char('i');
-  led_send_char('e');
 
 
   uart_send_string("\n\r");
