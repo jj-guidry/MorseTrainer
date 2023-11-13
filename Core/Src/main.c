@@ -4,8 +4,8 @@
 #include "main.h"
 #include <stdio.h>
 #include "init.h"
+#include "lcd_display.h"
 #include "serial_port.h"
-#include "led_display.h"
 enum {
 	START = 0,
 	E,
@@ -154,6 +154,8 @@ const char node_decode[TREE_SIZE] = {
 
 char state = START; // init to start state
 
+uint8_t cursor_pos = 0;
+
 // for the timer clocks to be initialized, we force an update event so that
 // the PSC's are loaded into their respective shadow registers
 volatile uint8_t forcedEventFlag = 0;
@@ -251,7 +253,7 @@ void TIM2_IRQHandler(){
 		// and send the current char to serial port and lcd display
 
 		char curr_char = node_decode[(int)state];
-		led_send_char(curr_char);
+		lcd_send_char(curr_char, (uint8_t*) &cursor_pos);
 		uart_send_char(curr_char);
 
 	} else if(TIM2->SR & TIM_SR_UIF){
@@ -259,7 +261,7 @@ void TIM2_IRQHandler(){
 		TIM2->SR &= ~TIM_SR_UIF; // clear UIF flag
 		TIM2->CR1 &= ~TIM_CR1_CEN; // stop the timer
 		// send a space, since this means end of current word
-		led_send_char(' ');
+		lcd_send_char(' ', (uint8_t*) &cursor_pos);
 		uart_send_char(' ');
 		TIM2->CNT = 0;
 	}
@@ -282,7 +284,7 @@ int main(void)
   init_buzzer_pwm();
 
   init_display();
-  led_startup_commands();
+  lcd_startup_commands();
 
 
   uart_send_string("\n\r");

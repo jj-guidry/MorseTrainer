@@ -1,7 +1,8 @@
 
 
+#include "lcd_display.h"
+
 #include <stdio.h>
-#include "led_display.h"
 #include "main.h"
 
 
@@ -9,17 +10,21 @@
 // pa5 = clk
 // pa7 = d1
 
+// wait n nanoseconds
+void wait(long n){
+  for(long i = n; i >= 0; i-=83);
+}
 
-void led_startup_commands(){
+void lcd_startup_commands(){
 	HAL_Delay(1);
-	led_send_command(0x38);
-	led_send_command(0x08);
-	led_send_command(0x01);
+	lcd_send_command(0x38); // function set: data length to 8 and font to english/japanese
+	lcd_send_command(0x08); //
+	lcd_send_command(0x01);
 
 	HAL_Delay(2);
-	led_send_command(0x06);
-	led_send_command(0x02);
-	led_send_command(0x0f);
+	lcd_send_command(0x06);
+	lcd_send_command(0x02);
+	lcd_send_command(0x0f);
 
 }
 void init_display(){
@@ -47,12 +52,25 @@ void init_display(){
 }
 
 
-void led_send_command(uint16_t cmd){
+void lcd_send_command(uint16_t cmd){
 	while(!(SPI1->SR & SPI_SR_TXE)); // wait tx buffer empty
 	SPI1->DR = cmd;
 }
 
 
-void led_send_char(char ch){
-	led_send_command(0x200 | ch); // send the char
+void lcd_send_char(char ch, uint8_t* cursor_pos){
+	// adjust the display if needed (wrapping to second line or clearing screen to start over)
+	if(*cursor_pos == 16){
+		lcd_send_command(0xc0); // go to second line (set DDRAM address to 0x40)
+	} else if(*cursor_pos == 32){
+		lcd_send_command(0x1); // clear screen
+		wait(2000000); // wait 2ms (as per documentation)
+		lcd_send_command(0x2); // return home / set DDRAM address to 0x00
+		*cursor_pos = -1; // anticipating that it will incremented to 0 at the end of this functions
+	}
+
+	lcd_send_command(0x200 | ch); // send the char
+
+	*cursor_pos += 1;
+
 }
