@@ -286,8 +286,10 @@ int main(void)
   init_display();
   lcd_startup_commands();
 
+  init_rf();
+  rf_setup_commands();
 
-  uart_send_string("\n\r");
+
   for(;;);
 
 }

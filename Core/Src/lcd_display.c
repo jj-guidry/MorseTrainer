@@ -12,16 +12,16 @@
 
 // wait n nanoseconds
 void wait(long n){
-  for(long i = n; i >= 0; i-=83);
+  for(long i = n; i >= 0; i-=257);
 }
 
 void lcd_startup_commands(){
-	HAL_Delay(1);
+	wait(1000000); // wait 2ms (as per documentation);
 	lcd_send_command(0x38); // function set: data length to 8 and font to english/japanese
 	lcd_send_command(0x08); //
 	lcd_send_command(0x01);
 
-	HAL_Delay(2);
+	wait(2000000); // wait 2ms (as per documentation)
 	lcd_send_command(0x06);
 	lcd_send_command(0x02);
 	lcd_send_command(0x0f);
