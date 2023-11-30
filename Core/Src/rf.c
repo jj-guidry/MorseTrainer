@@ -17,13 +17,25 @@ void rf_setup_commands(){
 	// channel frequency
 
 	//SPI2->CR1 |= SPI_CR1_SSI;
-	GPIOB->BRR = 1<<8;
-	rf_send_command(0x00); // read at 0x00
-	rf_send_command(0xff); // nop, just to generate clock pulses so that slave can give data at 0x00
-
-	while(!(SPI2->SR & SPI_SR_BSY));
-	GPIOB->BSRR = 1<<8;
+	GPIOB->BRR = 1<<12;
+	rf_send_command(0x00);
+	rf_send_command(0xff);
+	while((SPI2->SR & SPI_SR_BSY));
+	GPIOB->BSRR = 1<<12;
 	//SPI2->CR1 &= ~SPI_CR1_SSI;
+	GPIOB->BRR = 1<<12;
+	rf_send_command(0x00);
+	rf_send_command(0xff);
+
+	while((SPI2->SR & SPI_SR_BSY));
+	GPIOB->BSRR = 1<<12;
+
+	GPIOB->BRR = 1<<12;
+	rf_send_command(0x00);
+	rf_send_command(0xff);
+
+	while((SPI2->SR & SPI_SR_BSY));
+	GPIOB->BSRR = 1<<12;
 
 }
 
@@ -40,7 +52,7 @@ void init_rf(){
 	GPIOB->MODER |= GPIO_MODER_MODER15_1 | GPIO_MODER_MODER14_1 | GPIO_MODER_MODER13_1;
 	GPIOB->MODER &= ~(GPIO_MODER_MODER15_0 | GPIO_MODER_MODER14_0 | GPIO_MODER_MODER13_0);
 
-	GPIOB->MODER |= GPIO_MODER_MODER8_0;
+	GPIOB->MODER |= GPIO_MODER_MODER12_0;
 
 	GPIOB->AFR[1] &= ~(0xFFF00000); // all of 13, 14, 15 to AF1
 
@@ -55,7 +67,7 @@ void init_rf(){
 	//SPI2->CR2 |= SPI_CR2_NSSP; // no pulse between words, need it to pulse every two words
 	SPI2->CR1 |= SPI_CR1_SSM;
 	SPI2->CR1 |= SPI_CR1_SSI;
-	GPIOB->BSRR = 1<<8; // set software NSS high
+	GPIOB->BSRR = 1<<12; // set software NSS high
 
 	SPI2->CR1 |= SPI_CR1_SPE;
 	HAL_Delay(1);
