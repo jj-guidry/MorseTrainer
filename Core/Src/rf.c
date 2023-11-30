@@ -16,12 +16,15 @@ void rf_setup_commands(){
 	// air data rate
 	// channel frequency
 
-	GPIOB->BRR = 1<<12; // drive NSS low
+	//SPI2->CR1 |= SPI_CR1_SSI;
+	GPIOB->BRR = 1<<8;
 	rf_send_command(0x00); // read at 0x00
-	rf_send_command(0xFF); // nop, just to generate clock pulses so that slave can give data at 0x00
+	rf_send_command(0xff); // nop, just to generate clock pulses so that slave can give data at 0x00
 
-	//while(!(SPI2->SR & SPI_SR_TXE));
-	GPIOB->BSRR = 1<<12; // drive high after transfers
+	while(!(SPI2->SR & SPI_SR_BSY));
+	GPIOB->BSRR = 1<<8;
+	//SPI2->CR1 &= ~SPI_CR1_SSI;
+
 }
 
 void init_rf(){
@@ -37,9 +40,7 @@ void init_rf(){
 	GPIOB->MODER |= GPIO_MODER_MODER15_1 | GPIO_MODER_MODER14_1 | GPIO_MODER_MODER13_1;
 	GPIOB->MODER &= ~(GPIO_MODER_MODER15_0 | GPIO_MODER_MODER14_0 | GPIO_MODER_MODER13_0);
 
-	GPIOB->MODER |= GPIO_MODER_MODER12_0; // manually toggle pb12 for NSS, cause SPI NSS hardware is being too freaky
-
-	GPIOB->BSRR = 1<<12; // drive NSS high preliminarily
+	GPIOB->MODER |= GPIO_MODER_MODER8_0;
 
 	GPIOB->AFR[1] &= ~(0xFFF00000); // all of 13, 14, 15 to AF1
 
@@ -48,15 +49,20 @@ void init_rf(){
 	SPI2->CR1 &= ~SPI_CR1_SPE;
 	while(SPI2->CR1 & SPI_CR1_SPE); // wait for it to be off
 	SPI2->CR1 |= SPI_CR1_BR; // set to all 1's, highest divisor, lowest baud rate (48MHz/256 = 187.5KHz)
+	//SPI2->CR2 |= SPI_CR2_DS;
 	SPI2->CR1 |= SPI_CR1_MSTR; // stm to master mode
-	SPI2->CR2 |= SPI_CR2_SSOE;
-	SPI2->CR2 |= SPI_CR2_NSSP;
-	SPI2->CR1 |= SPI_CR1_SPE; // enable channel
+	//SPI2->CR2 |= SPI_CR2_SSOE;
+	//SPI2->CR2 |= SPI_CR2_NSSP; // no pulse between words, need it to pulse every two words
+	SPI2->CR1 |= SPI_CR1_SSM;
+	SPI2->CR1 |= SPI_CR1_SSI;
+	GPIOB->BSRR = 1<<8; // set software NSS high
+
+	SPI2->CR1 |= SPI_CR1_SPE;
 	HAL_Delay(1);
 
 }
 
-void rf_send_command(uint16_t cmd){
+void rf_send_command(uint8_t cmd){
 	while(!(SPI2->SR & SPI_SR_TXE)); // wait for buffer to be empty
 	*SPI_DR_8BIT = cmd;
 }
