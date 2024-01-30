@@ -67,4 +67,3 @@ void init_timers_gpio(){
 
 }
 
-

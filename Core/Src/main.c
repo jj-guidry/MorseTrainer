@@ -6,6 +6,8 @@
 #include "init.h"
 #include "lcd_display.h"
 #include "serial_port.h"
+#include "rf.h"
+
 enum {
 	START = 0,
 	E,
@@ -288,6 +290,8 @@ int main(void)
 
   init_rf();
   rf_setup_commands();
+
+  // read switch position, determine if TX or RX mode
 
 
   for(;;);
