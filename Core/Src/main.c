@@ -170,7 +170,7 @@ void SystemClock_Config(void);
 
 void EXTI0_1_IRQHandler(){
 
-	// ack interrupt -> clear 1st bit of EXTI->PR
+	// ack interrupt -> clear 1st bit of EXTI->PR (clear by writing a 1)
 	EXTI->PR = 1<<1;
 
 	// toggle pc7 led
@@ -273,6 +273,15 @@ void TIM2_IRQHandler(){
 
 }
 
+void EXTI4_15_IRQHandler(){
+	EXTI->PR |= 1<<7;
+	if(GPIOB->IDR & (1 << 7)){ // switch is high -> TX mode
+		set_tx_mode();
+	} else {
+		set_rx_mode();
+	}
+}
+
 
 int main(void)
 {
@@ -292,7 +301,14 @@ int main(void)
   rf_setup_commands();
 
   // read switch position, determine if TX or RX mode
+  init_mode_switch();
 
+  // read initial switch position
+  if(GPIOB->IDR & (1 << 7)){
+	  set_tx_mode();
+  } else {
+	  set_rx_mode();
+  }
 
   for(;;);
 

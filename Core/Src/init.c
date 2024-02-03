@@ -32,7 +32,7 @@ void init_timers_gpio(){
 	GPIOC->MODER &= ~(GPIO_MODER_MODER7_1);
 
 
-	// config interrupt on pa0
+	// config interrupt on pa1
 	SYSCFG->EXTICR[0] &= ~(0xf<<4); // clear bottom 4 bits to set interrupt on pa1
 	// call ISR for both rising and falling edge
 	EXTI->RTSR |= EXTI_RTSR_RT1;
@@ -65,5 +65,80 @@ void init_timers_gpio(){
 
     NVIC->ISER[0] = 1<<TIM2_IRQn;
 
+}
+
+void init_mode_switch(){
+
+	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
+
+	GPIOB->MODER &= ~GPIO_MODER_MODER7; // PB7 as input
+	GPIOB->MODER |= GPIO_MODER_MODER5_0 | GPIO_MODER_MODER6_0; // pb5 and pb6 as output
+
+
+	SYSCFG->EXTICR[1] &= ~(0xf<<12); // clear pin 7
+	SYSCFG->EXTICR[1] |= (1<<12); // set lowest pin for pin 7 routed to port b
+
+	// interrupt on both rising and falling edges
+	EXTI->RTSR |= EXTI_RTSR_RT7;
+	EXTI->FTSR |= EXTI_FTSR_FT7;
+
+	// unmask interrupt
+	EXTI->IMR |= EXTI_IMR_IM7;
+
+	NVIC->ISER[0] = 1 << EXTI4_15_IRQn;
+
+}
+
+void set_tx_mode(){
+	// set green (pb6)
+	// clear red (pb5)
+	// clear screen
+	// config RF to send chars recieved
+	// enable button interrupt
+
+	// enable the input button
+	EXTI->IMR |= EXTI_IMR_IM1;
+
+
+	//------------ rf stuff start -----------
+
+
+	//------------  rf stuff stop ------------
+
+	// clear the screen
+	lcd_send_command(0x1); // clear screen
+	wait(2000000); // wait 2ms (as per documentation)
+	lcd_send_command(0x2); // return home / set DDRAM address to 0x00
+
+
+
+	// toggle LEDS
+	GPIOB->BSRR = 1<<6;
+	GPIOB->BRR = 1<<5;
+}
+
+void set_rx_mode(){
+	// set red (pb5)
+	// clear green (pb6)
+	// clear screen
+	// config rf to listen for chars
+	// disable button interrupt
+
+	// disable the button
+	EXTI->IMR &= ~EXTI_IMR_IM1;
+
+	//------------ rf stuff start -----------
+
+
+	//------------  rf stuff stop ------------
+
+	// clear the screen
+	lcd_send_command(0x1); // clear screen
+	wait(2000000); // wait 2ms (as per documentation)
+	lcd_send_command(0x2); // return home / set DDRAM address to 0x00
+
+	// toggle LEDS
+	GPIOB->BSRR = 1<<5;
+	GPIOB->BRR = 1<<6;
 }
 
